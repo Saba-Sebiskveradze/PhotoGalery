@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
-import { popularPhoto } from "./data";
+import { popularPhoto, getStatistics } from "./data";
+import ImageModal from "./ImageModal";
+
 import "./App.css";
 
 type Photo = {
-  id: number;
+  id: string;
   width: number;
   height: number;
   urls: { large: string; regular: string; raw: string; small: string };
@@ -12,6 +14,7 @@ type Photo = {
     username: string;
     name: string;
   };
+  likes:number;
 };
 
 function MainPage() {
@@ -22,11 +25,17 @@ function MainPage() {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState<boolean>(false);
+  const [selectedImage, setSelectedImage] = useState<Photo | null>(null);
+  const [imageStats, setImageStats] = useState<{
+    downloads: number;
+    views: number;
+    likes: number;
+  } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchPhotos = useCallback(async () => {
     setLoading(true);
     try {
-    
       const cacheKey = `search_${query}_page_${page}`;
       const cachedData = localStorage.getItem(cacheKey);
 
@@ -84,11 +93,16 @@ function MainPage() {
     e.preventDefault();
     if (query !== search) {
       setQuery(search);
-      setPhotos([]); 
-      setPage(1); 
-      const searches = JSON.parse(localStorage.getItem("searchHistory") || "[]");
-      if (!searches.includes(search) && search!="") {
-        localStorage.setItem("searchHistory", JSON.stringify([...searches, search]));
+      setPhotos([]);
+      setPage(1);
+      const searches = JSON.parse(
+        localStorage.getItem("searchHistory") || "[]"
+      );
+      if (!searches.includes(search) && search != "") {
+        localStorage.setItem(
+          "searchHistory",
+          JSON.stringify([...searches, search])
+        );
       }
     }
   };
@@ -99,8 +113,18 @@ function MainPage() {
       behavior: "smooth",
     });
   };
- 
 
+
+  const handleImageClick = async (photo: Photo) => {
+    try {
+      const stats = await getStatistics(photo.id);
+      setImageStats(stats);
+      setSelectedImage(photo);
+      setIsModalOpen(true);      
+    } catch (error) {
+      console.error("Error fetching image statistics:", error);
+    }
+  };
 
   return (
     <div className="main-page">
@@ -119,6 +143,7 @@ function MainPage() {
             src={photo.urls.regular}
             alt={`By ${photo.user.name}`}
             className="photo"
+            onClick={() => handleImageClick(photo)}
           />
         ))}
         {loading && <div className="loading">Loading...</div>}
@@ -133,6 +158,15 @@ function MainPage() {
           >
             UP
           </button>
+        )}
+        {isModalOpen && selectedImage && imageStats && (
+          <ImageModal
+            imageUrl={selectedImage.urls.regular}
+            downloads={imageStats.downloads}
+            views={imageStats.views}
+            likes={selectedImage.likes}
+            onClose={() => setIsModalOpen(false)}
+          />
         )}
       </div>
     </div>

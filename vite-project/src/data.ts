@@ -1,3 +1,4 @@
+
 export async function popularPhoto(page: number, search: string) {
   try {
     const res = await fetch(
@@ -6,6 +7,29 @@ export async function popularPhoto(page: number, search: string) {
     if (res.ok) {
       const data = await res.json();
       return data.results;
+    }
+    throw new Error("Something unexpected happened");
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(error.message);
+    }
+    throw new Error("An unknown error occurred");
+  }
+}
+
+export async function getStatistics(id: string) {
+  try {
+    const res = await fetch(
+      `https://api.unsplash.com/photos/${id}/statistics?client_id=PPEjk1ZqQ6-670enYsuu0uf35AzYzkFJOvSt0Gx1YVU`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      
+      return {
+        downloads: data.downloads.total,
+        views: data.views.total,
+        likes: data.likes.total,
+      };
     }
     throw new Error("Something unexpected happened");
   } catch (error) {

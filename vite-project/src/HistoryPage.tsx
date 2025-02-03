@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { popularPhoto } from "./data";
+import { popularPhoto, getStatistics } from "./data";
 import "./App.css";
+import ImageModal from "./ImageModal";
 
 type Photo = {
-  id: number;
+  id: string;
   width: number;
   height: number;
   urls: { large: string; regular: string; raw: string; small: string };
@@ -12,6 +13,8 @@ type Photo = {
     username: string;
     name: string;
   };
+  likes:number;
+
 };
 
 function HistoryPage() {
@@ -23,6 +26,15 @@ function HistoryPage() {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
+  const [showScrollButton, setShowScrollButton] = useState<boolean>(false);
+  const [selectedImage, setSelectedImage] = useState<Photo | null>(null);
+    const [imageStats, setImageStats] = useState<{
+      downloads: number;
+      views: number;
+      likes: number;
+    } | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
 
   useEffect(() => {
     const history = JSON.parse(localStorage.getItem("searchHistory") || "[]");
@@ -75,6 +87,18 @@ function HistoryPage() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [loading, hasMore]);
+  useEffect(() => {
+    const handleScrollVisibility = () => {
+      if (window.pageYOffset > 300) {
+        setShowScrollButton(true);
+      } else {
+        setShowScrollButton(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScrollVisibility);
+    return () => window.removeEventListener("scroll", handleScrollVisibility);
+  }, []);
 
   const handleSearchTermClick = (term: string) => {
     setQuery(term);
@@ -106,6 +130,23 @@ function HistoryPage() {
     const cacheKey = `search_${term}`;
     localStorage.removeItem(cacheKey);
   };
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+  const handleImageClick = async (photo: Photo) => {
+      try {
+        const stats = await getStatistics(photo.id);
+        setImageStats(stats);
+        setSelectedImage(photo);
+        setIsModalOpen(true);      
+      } catch (error) {
+        console.error("Error fetching image statistics:", error);
+      }
+    };
+  
 
   return (
     <div className="history-page">
@@ -149,6 +190,8 @@ function HistoryPage() {
               src={photo.urls.regular}
               alt={`By ${photo.user.name}`}
               className="photo"
+              onClick={() => handleImageClick(photo)}
+
             />
           ))}
           {loading && <div className="loading">Loading...</div>}
@@ -157,6 +200,42 @@ function HistoryPage() {
           )}
         </div>
       )}
+      {showScrollButton && (
+          <button
+            className="scroll-button"
+            onClick={scrollToTop}
+            aria-label="Scroll to top"
+          >
+            UP
+          </button>
+        )}
+        {isModalOpen && selectedImage && imageStats && (
+          <ImageModal
+            imageUrl={selectedImage.urls.regular}
+            downloads={imageStats.downloads}
+            views={imageStats.views}
+            likes={selectedImage.likes}
+            onClose={() => setIsModalOpen(false)}
+          />
+        )}
+        {showScrollButton && (
+          <button
+            className="scroll-button"
+            onClick={scrollToTop}
+            aria-label="Scroll to top"
+          >
+            UP
+          </button>
+        )}
+        {isModalOpen && selectedImage && imageStats && (
+          <ImageModal
+            imageUrl={selectedImage.urls.regular}
+            downloads={imageStats.downloads}
+            views={imageStats.views}
+            likes={selectedImage.likes}
+            onClose={() => setIsModalOpen(false)}
+          />
+        )}
     </div>
   );
 }
